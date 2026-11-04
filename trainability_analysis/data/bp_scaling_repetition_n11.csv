@@ -1,0 +1,13 @@
+n_code,n_params,fidelity_var,spectral_full_var
+3,96,2.497284e-03,7.368485e-04
+5,216,1.269223e-04,6.810054e-05
+7,384,7.556208e-06,1.112523e-05
+9,600,4.333493e-07,2.284532e-06
+11,864,2.841221e-08,5.042454e-07
+
+=== SCALING SUMMARY (Var ~ exp(a*n)) ===
+metric,fidelity,spectral_full
+slope_a_raw,-1.4224,-0.8984
+shrink_per_qubit_raw,+0.2411,+0.4072
+R2_exponential_raw,+0.9998,+0.9907
+R2_polynomial_raw,+0.9697,+0.9913

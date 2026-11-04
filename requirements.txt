@@ -1,0 +1,12 @@
+# Versions used to produce the paper results (Python 3.12, CUDA 13)
+numpy==2.1.0
+scipy==1.16.3
+matplotlib==3.10.8
+jax[cuda13]==0.10.2
+jaxlib==0.10.2
+optax==0.2.8
+pennylane==0.45.1
+# Hardware scripts (hardware/) only:
+qiskit==2.5.2
+qiskit-aer==0.17.2
+qiskit-ibm-runtime==0.49.0

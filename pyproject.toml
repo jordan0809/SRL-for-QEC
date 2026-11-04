@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srl-qec"
+version = "0.1.0"
+description = "Spectral Recovery Learning for Measurement-Free Quantum Error Correction"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+dependencies = [
+    "numpy==2.1.0",
+    "scipy==1.16.3",
+    "matplotlib==3.10.8",
+    "jax==0.10.2",
+    "jaxlib==0.10.2",
+    "optax==0.2.8",
+    "pennylane==0.45.1",
+]
+
+[project.optional-dependencies]
+# NVIDIA GPU (CUDA 13) build of JAX
+gpu = ["jax[cuda13]==0.10.2"]
+# Only needed for the scripts in hardware/
+hardware = ["qiskit==2.5.2", "qiskit-aer==0.17.2", "qiskit-ibm-runtime==0.49.0"]
+
+[tool.setuptools]
+py-modules = []
