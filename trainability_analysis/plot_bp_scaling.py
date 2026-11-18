@@ -6,17 +6,25 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 # ---- config ----
-#CSV_IN        = "bp_scaling_repetition.csv"
-CSV_IN        = "data/bp_scaling_repetition_n11.csv"
-PNG_SEMILOG   = "bp_scaling_repetition_semilog_n11.pdf"
-PNG_LOGLOG    = "bp_scaling_repetition_loglog_n11.pdf"
-MODES  = ["fidelity", "spectral_full"]          
-cmap = {
-    "fidelity":  "#e74c3c",
-    "spectral_full": '#3498db',
+CSV_IN  = "data/bp_scaling_repetition_n11.csv"
+PDF_OUT = "bp_scaling_repetition_combined_n11.pdf"
+MODES   = ["fidelity", "spectral_full"]
+LABELS  = {"fidelity": "fidelity", "spectral_full": "spectral"}
+
+# axis colors (strongly contrasting)
+C_LIN = "#1f4e9c"   # bottom axis: blue
+C_LOG = "#d35400"   # top axis: orange
+
+# per-curve colors: similar shade within each axis group
+COLOR = {
+    "lin": {"fidelity": "#1f4e9c", "spectral_full": "#5dade2"},
+    "log": {"fidelity": "#d35400", "spectral_full": "#f5b041"},
 }
-mark   = {"fidelity": "s-",      "spectral_full": "o-"}
-LABELS = {"fidelity": "fidelity", "spectral_full": "spectral"}
+LS     = {"fidelity": "-",  "spectral_full": "--"}   # line style -> loss type
+MARKER = {"fidelity": "s",  "spectral_full": "o"}    # marker     -> loss type
+
+TICKS = [3, 5, 7, 9, 11]
+XLIM  = (2.7, 11.5)   # same range on both axes -> endpoints align
 
 # ---- load per-n data section (stop at blank line before summary) ----
 rows = []
@@ -32,70 +40,78 @@ col  = {name: i for i, name in enumerate(header)}
 n    = np.array([float(r[col["n_code"]]) for r in rows])
 data = {m: np.array([float(r[col[m + "_var"]]) for r in rows]) for m in MODES}
 
-# ---- fits ----
-def exp_fit(y):
-    """Var ~ exp(a*n): linear fit of log(y) vs n."""
-    y = np.asarray(y, float); mk = (y > 0) & np.isfinite(y)
-    if mk.sum() < 2:
-        return np.nan, None
-    a, b = np.polyfit(n[mk], np.log(y[mk]), 1)
-    return a, (a, b)
+# ---- fits (only used for legend values) ----
+def _mask(y):
+    y = np.asarray(y, float)
+    return y, (y > 0) & np.isfinite(y)
 
-def pow_fit(y):
-    """Var ~ n^b: linear fit of log(y) vs log(n)."""
-    y = np.asarray(y, float); mk = (y > 0) & np.isfinite(y)
-    if mk.sum() < 2:
-        return np.nan, None
-    b, c = np.polyfit(np.log(n[mk]), np.log(y[mk]), 1)
-    return b, (b, c)
+def exp_slope(y):
+    """Var ~ exp(a*n): slope of log(y) vs n."""
+    y, mk = _mask(y)
+    return np.polyfit(n[mk], np.log(y[mk]), 1)[0] if mk.sum() >= 2 else np.nan
 
-# ---- figure 1: semilog-y (straight line => exponential decay) ----
-fig, ax = plt.subplots(figsize=(8, 6))
+def pow_exponent(y):
+    """Var ~ n^b: slope of log(y) vs log(n)."""
+    y, mk = _mask(y)
+    return np.polyfit(np.log(n[mk]), np.log(y[mk]), 1)[0] if mk.sum() >= 2 else np.nan
+
+# ---- figure ----
+fig, ax_lin = plt.subplots(figsize=(9, 7))
+ax_log = ax_lin.twiny()           # same y-axis, own x-axis on top
+ax_lin.set_yscale("log")
+ax_log.set_xscale("log")
+
+h_lin, l_lin, h_log, l_log = [], [], [], []
 for m in MODES:
     y = data[m]
-    a, fit = exp_fit(y)
-    ax.semilogy(n, y, mark[m], color=cmap[m], lw=2, ms=8,
-                label=f"{LABELS[m]}  slope={a:+.2f}")
-    if fit is not None:
-        aa, bb = fit
-        nn = np.linspace(n.min(), n.max(), 100)
-        ax.semilogy(nn, np.exp(aa * nn + bb), color=cmap[m], lw=1, ls=":", alpha=0.6)
 
-ax.set_xlabel("n",fontsize = 15)
-ax.set_ylabel(r"Var[$\partial C$]",fontsize = 15)
-ax.set_xticks([3, 5, 7, 9, 11])
-ax.tick_params(axis="both", labelsize=12)
-#ax.set_title(r"Var[$\partial C$] decay — semilog (exponential test)")
-ax.legend(fontsize=12)
-ax.grid(True, alpha=0.3, which="both")
+    # linear-n curve (bottom axis)
+    ln, = ax_lin.plot(n, y, ls=LS[m], marker=MARKER[m], color=COLOR["lin"][m],
+                      lw=3, ms=12)
+    h_lin.append(ln)
+    l_lin.append(f"{LABELS[m]}  slope={exp_slope(y):+.2f}")
+
+    # log-n curve (top axis), hollow markers for extra separation
+    ln, = ax_log.plot(n, y, ls=LS[m], marker=MARKER[m], color=COLOR["log"][m],
+                      lw=3, ms=12, markerfacecolor="white", markeredgewidth=2.5)
+    h_log.append(ln)
+    l_log.append(f"{LABELS[m]}  slope={pow_exponent(y):+.2f}")
+
+# ---- x-axes ----
+for axis in (ax_lin, ax_log):
+    axis.set_xlim(XLIM)
+    axis.set_xticks(TICKS)
+    axis.set_xticklabels([str(t) for t in TICKS])
+ax_log.xaxis.set_minor_locator(mticker.NullLocator())
+
+ax_lin.set_xlabel("n  (linear scale)", fontsize=20, color=C_LIN)
+ax_log.set_xlabel("n  (log scale)", fontsize=20, color=C_LOG)
+ax_lin.tick_params(axis="x", colors=C_LIN, labelsize=20)
+ax_log.tick_params(axis="x", colors=C_LOG, labelsize=20)
+
+ax_lin.spines["top"].set_visible(False)
+ax_log.spines["bottom"].set_visible(False)
+ax_lin.spines["bottom"].set_color(C_LIN); ax_lin.spines["bottom"].set_linewidth(2)
+ax_log.spines["top"].set_color(C_LOG);    ax_log.spines["top"].set_linewidth(2)
+
+# ---- y-axis, grid ----
+ax_lin.set_ylabel(r"Var[$\partial C$]", fontsize=20)
+ax_lin.tick_params(axis="y", labelsize=20)
+ax_lin.grid(True, alpha=0.3, which="both")
+
+# ---- two grouped legends (both on top axes so they are drawn above all lines) ----
+leg_lin = ax_log.legend(h_lin, l_lin, title="linear n — exp. test",
+                        fontsize=16, title_fontsize=16, loc="lower left",
+                        edgecolor=C_LIN)
+leg_lin.get_title().set_color(C_LIN)
+ax_log.add_artist(leg_lin)        # keep first legend when adding the second
+
+leg_log = ax_log.legend(h_log, l_log, title="log n — power-law test",
+                        fontsize=16, title_fontsize=16, loc="upper right",
+                        edgecolor=C_LOG)
+leg_log.get_title().set_color(C_LOG)
+
 plt.tight_layout()
-fig.savefig(PNG_SEMILOG, dpi=150, bbox_inches="tight")
-print(f"  Saved : {PNG_SEMILOG}")
-plt.close(fig)
-
-# ---- figure 2: log-log (straight line => polynomial decay) ----
-fig, ax = plt.subplots(figsize=(8, 6))
-for m in MODES:
-    y = data[m]
-    b, fit = pow_fit(y)
-    ax.loglog(n, y, mark[m], color=cmap[m], lw=2, ms=8,
-              label=f"{LABELS[m]}  exponent={b:+.2f}")
-    if fit is not None:
-        bb, cc = fit
-        nn = np.linspace(n.min(), n.max(), 100)
-        ax.loglog(nn, np.exp(cc) * nn ** bb, color=cmap[m], lw=1, ls=":", alpha=0.6)
-
-ax.set_xlabel("n",fontsize = 15)
-ax.set_ylabel(r"Var[$\partial C$]",fontsize = 15)
-ax.set_xticks([3, 5, 7, 9, 11])
-ax.set_xticklabels(["3", "5", "7", "9", "11"], fontsize=12)
-ax.tick_params(axis="y", labelsize=12)
-#ax.set_xticklabels([f"{int(v)}" for v in n])   # readable ticks on log x-axis
-ax.xaxis.set_minor_locator(mticker.NullLocator())   # drop the 4·10⁰ / 6·10⁰ labels
-#ax.set_title(r"Var[$\partial C$] decay — log-log (polynomial test)")
-ax.legend(fontsize=12)
-ax.grid(True, alpha=0.3, which="both")
-plt.tight_layout()
-fig.savefig(PNG_LOGLOG, dpi=150, bbox_inches="tight")
-print(f"  Saved : {PNG_LOGLOG}")
+fig.savefig(PDF_OUT, dpi=150, bbox_inches="tight")
+print(f"  Saved : {PDF_OUT}")
 plt.close(fig)
